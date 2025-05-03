@@ -1,0 +1,58 @@
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+[New Thread 0x7ffff6c00640 (LWP 45968)]
+[New Thread 0x7ffff6200640 (LWP 45969)]
+[New Thread 0x7ffff5800640 (LWP 45970)]
+[New Thread 0x7ffff4e00640 (LWP 45971)]
+[New Thread 0x7fffefe00640 (LWP 45972)]
+[New Thread 0x7fffef400640 (LWP 45973)]
+[New Thread 0x7fffeea00640 (LWP 45974)]
+[New Thread 0x7fffee000640 (LWP 45975)]
+[New Thread 0x7fffed600640 (LWP 46019)]
+[Switching to Thread 0x7fffed600640 (LWP 46019)]
+
+Thread 10 "dm_imu_node" hit Breakpoint 1, dmbot_serial::DmImu::publish_imu_data (this=0x555555658ad0) at /home/rm/dm_imu/src/dm_imu/src/imu_driver.cpp:223
+223	{
+224	    RCLCPP_INFO(node_->get_logger(), "Publishing IMU data...");
+225	    auto now = node_->get_clock()->now();
+228	    auto imu_msg = std::make_unique<sensor_msgs::msg::Imu>();
+229	    imu_msg->header.stamp = now;
+230	    imu_msg->header.frame_id = "imu_link";
+233	    tf2::Quaternion q;
+238	            data.yaw * M_PI / 180.0
+237	            data.pitch * M_PI / 180.0,
+236	            data.roll * M_PI / 180.0,
+235	        q.setRPY(
+240	        RCLCPP_INFO(node_->get_logger(), "转换欧拉角到四元数");
+247	    imu_msg->orientation = tf2::toMsg(q);
+250	    imu_msg->angular_velocity.x = data.gyrox;
+251	    imu_msg->angular_velocity.y = data.gyroy;
+252	    imu_msg->angular_velocity.z = data.gyroz;
+255	    imu_msg->linear_acceleration.x = data.accx;
+256	    imu_msg->linear_acceleration.y = data.accy;
+257	    imu_msg->linear_acceleration.z = data.accz;
+259	    imu_pub_->publish(std::move(imu_msg));
+260	    RCLCPP_INFO(node_->get_logger(), "发布IMU 数据成功");
+263	    if (imu_pose_pub_) {
+264	        auto pose_msg = std::make_unique<geometry_msgs::msg::PoseStamped>();
+265	        pose_msg->header = imu_msg->header;
+
+Thread 10 "dm_imu_node" received signal SIGSEGV, Segmentation fault.
+0x000055555556b268 in std_msgs::msg::Header_<std::allocator<void> >::operator= (this=0x7fffc4002240) at /opt/ros/humble/include/std_msgs/std_msgs/msg/detail/header__struct.hpp:36
+36	struct Header_
+[Thread 0x7fffed600640 (LWP 46019) exited]
+[Thread 0x7fffee000640 (LWP 45975) exited]
+[Thread 0x7fffeea00640 (LWP 45974) exited]
+[Thread 0x7fffef400640 (LWP 45973) exited]
+[Thread 0x7fffefe00640 (LWP 45972) exited]
+[Thread 0x7ffff5800640 (LWP 45970) exited]
+[Thread 0x7ffff6200640 (LWP 45969) exited]
+[Thread 0x7ffff6c00640 (LWP 45968) exited]
+[Thread 0x7ffff7871380 (LWP 45958) exited]
+[Thread 0x7ffff4e00640 (LWP 45971) exited]
+[New process 45958]
+
+Program terminated with signal SIGSEGV, Segmentation fault.
+The program no longer exists.
+No stack.
+No symbol "imu_msg" in current context.

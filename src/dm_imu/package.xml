@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>dm_imu</name>
+  <version>0.0.0</version>
+  <description>IMU driver package migrated to ROS2</description>
+  <maintainer email="dm@todo.todo">dm</maintainer>
+  <license>TODO</license>
+
+  <!-- ROS2 build工具 -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- 依赖项 -->
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>serial</depend> <!-- 需要确认ROS2中的对应包名 -->
+  <depend>rcl_interfaces</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+  
+
+  <!-- 如果使用消息/服务 -->
+  <!-- <build_depend>rosidl_default_generators</build_depend> -->
+  <!-- <exec_depend>rosidl_default_runtime</exec_depend> -->
+  <!-- <member_of_group>rosidl_interface_packages</member_of_group> -->
+
+  <!-- 必须的export标签 -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

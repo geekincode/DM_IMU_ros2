@@ -1,0 +1,29 @@
+# 设置源码路径，便于查看具体代码行号
+directory /home/rm/dm_imu/src
+
+# 加载可执行文件
+file /home/rm/dm_imu/install/dm_imu/lib/dm_imu/dm_imu_node
+
+# 设置断点：在 publish_imu_data 函数入口处暂停
+break dmbot_serial::DmImu::publish_imu_data
+
+# 可选：也可以设置其他关键函数的断点
+#break dmbot_serial::DmImu::get_imu_data_thread
+#break dmbot_serial::DmImu::init_imu_serial
+
+# 设置命令别名，方便重复使用
+define run_debug
+    run
+end
+
+define bt_full
+    bt full
+end
+
+define print_imu_msg
+    print imu_msg
+end
+
+# 设置日志输出（可选）
+set logging on
+set logging file gdb_output.log

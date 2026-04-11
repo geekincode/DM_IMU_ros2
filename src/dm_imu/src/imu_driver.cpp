@@ -19,6 +19,16 @@ DmImu::DmImu(rclcpp::Node::SharedPtr node)
     // 获取参数
     node->declare_parameter("port", "/dev/ttyACM0");
     node->declare_parameter("baud", 921600);
+
+    // 声明默认值并读取
+    node->declare_parameter("imu.roll_offset", 0.0);
+    node->declare_parameter("imu.pitch_offset", 0.0);
+    node->declare_parameter("imu.yaw_offset", 0.0);
+
+    node->get_parameter("imu.roll_offset", roll_offset);
+    node->get_parameter("imu.pitch_offset", pitch_offset);
+    node->get_parameter("imu.yaw_offset", yaw_offset);
+
     
     imu_serial_port = node->get_parameter("port").as_string();
     imu_seial_baud = node->get_parameter("baud").as_int();
@@ -33,6 +43,13 @@ DmImu::DmImu(rclcpp::Node::SharedPtr node)
     euler2_pub_ = node->create_publisher<std_msgs::msg::Float64MultiArray>("dm/imu", 9);
 
     transform_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
+
+    // 注册参数回调，实现动态更新
+    parameter_callback_handle_ = node->add_on_set_parameters_callback(
+        [this](const std::vector<rclcpp::Parameter> &parameters) {
+            return this->on_parameter_change(parameters);
+        }
+    );
 
     // 进入设置模式
     enter_setting_mode();
@@ -226,12 +243,20 @@ void DmImu::publish_imu_data()
 
     tf2::Quaternion q;
     try {
+        // Apply RPY offsets (parameters are expected in degrees)
+        double roll = data.roll + roll_offset;
+        double pitch = data.pitch + pitch_offset;
+        double yaw = data.yaw + yaw_offset;
+
         q.setRPY(
-            data.roll * M_PI / 180.0,
-            data.pitch * M_PI / 180.0,
-            data.yaw * M_PI / 180.0
+            roll * M_PI / 180.0,
+            pitch * M_PI / 180.0,
+            yaw * M_PI / 180.0
         );
-        RCLCPP_DEBUG(node_->get_logger(), "转换欧拉角到四元数");
+        RCLCPP_DEBUG(node_->get_logger(), "转换欧拉角到四元数 (raw RPY: %.3f, %.3f, %.3f) (offsets: %.3f, %.3f, %.3f) (used RPY: %.3f, %.3f, %.3f)",
+            data.roll, data.pitch, data.yaw,
+            roll_offset, pitch_offset, yaw_offset,
+            roll, pitch, yaw);
     } catch (const tf2::InvalidArgumentException& e) {
         RCLCPP_ERROR(node_->get_logger(), "Invalid Euler angles: roll=%.2f, pitch=%.2f, yaw=%.2f", 
                     data.roll, data.pitch, data.yaw);
@@ -392,6 +417,29 @@ void DmImu::restart_imu()
     serial_imu.write(txbuf,sizeof(txbuf));
     rclcpp::sleep_for(std::chrono::milliseconds(10));
   }
+}
+
+rcl_interfaces::msg::SetParametersResult DmImu::on_parameter_change(
+    const std::vector<rclcpp::Parameter> &parameters)
+{
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+    result.reason = "";
+
+    for (const auto &param : parameters) {
+        if (param.get_name() == "imu.roll_offset") {
+            roll_offset = param.as_double();
+            RCLCPP_INFO(node_->get_logger(), "Updated roll_offset to: %.3f", roll_offset);
+        } else if (param.get_name() == "imu.pitch_offset") {
+            pitch_offset = param.as_double();
+            RCLCPP_INFO(node_->get_logger(), "Updated pitch_offset to: %.3f", pitch_offset);
+        } else if (param.get_name() == "imu.yaw_offset") {
+            yaw_offset = param.as_double();
+            RCLCPP_INFO(node_->get_logger(), "Updated yaw_offset to: %.3f", yaw_offset);
+        }
+    }
+
+    return result;
 }
 
 } // namespace dmbot_serial

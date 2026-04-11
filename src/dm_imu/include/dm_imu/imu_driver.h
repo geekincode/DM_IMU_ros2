@@ -15,6 +15,7 @@
 #include <cmath>
 #include "dm_imu/bsp_crc.h"
 #include "std_msgs/msg/float64_multi_array.hpp"
+#include <rcl_interfaces/msg/set_parameters_result.hpp>
 
 #define IMU_SERIAL_DEBUG 0      //{0:none, 1:all_Rxdata}
 
@@ -98,6 +99,9 @@ namespace dmbot_serial
       std::mutex data_mutex_;
       IMU_Data data{};
 
+      double roll_offset = 0.0, pitch_offset = 0.0, yaw_offset = 0.0;
+      rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback_handle_;
+
     // 私有方法声明
     void enter_setting_mode();
     void turn_on_accel();
@@ -108,6 +112,8 @@ namespace dmbot_serial
     void save_imu_para();
     void exit_setting_mode();
     void restart_imu();
+    rcl_interfaces::msg::SetParametersResult on_parameter_change(
+        const std::vector<rclcpp::Parameter> &parameters);
 };
 
 }

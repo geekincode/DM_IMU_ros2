@@ -77,6 +77,11 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/
 )
 
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 # 6. 必须的ament宏，确保这是最后一个ament相关的调用
 ament_package()
 

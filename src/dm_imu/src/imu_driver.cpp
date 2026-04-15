@@ -27,6 +27,7 @@ DmImu::DmImu(rclcpp::Node::SharedPtr node)
     node->declare_parameter("imu.calibrate_on_startup", true);
     node->declare_parameter("imu.calibration_samples", 100);
     node->declare_parameter("imu.calibration_timeout_ms", 5000);
+    node->declare_parameter("imu.publish_pose", false);
 
     node->get_parameter("imu.roll_offset", roll_offset);
     node->get_parameter("imu.pitch_offset", pitch_offset);
@@ -34,6 +35,7 @@ DmImu::DmImu(rclcpp::Node::SharedPtr node)
     node->get_parameter("imu.calibrate_on_startup", calibrate_on_startup_);
     node->get_parameter("imu.calibration_samples", calibration_samples_);
     node->get_parameter("imu.calibration_timeout_ms", calibration_timeout_ms_);
+    node->get_parameter("imu.publish_pose", publish_pose_);
 
     
     imu_serial_port = node->get_parameter("port").as_string();
@@ -355,22 +357,20 @@ void DmImu::publish_imu_data()
     auto orientation = imu_msg->orientation;
     imu_pub_->publish(std::move(imu_msg));  // imu_msg 被 move 后不能再使用
 
-    // 发布 PoseStamped
-    if (imu_pose_pub_) {
+    // 发布 PoseStamped（可配置）
+    if (publish_pose_ && imu_pose_pub_) {
         auto pose_msg = std::make_unique<geometry_msgs::msg::PoseStamped>();
         if (!pose_msg) {
             RCLCPP_ERROR(node_->get_logger(), "Failed to allocate pose_msg");
             return;
         }
-        pose_msg->header = header;  // 使用 header 副本
-        pose_msg->header.frame_id = "map";  // 确保与 IMU 消息一致
-        pose_msg->pose.orientation = orientation;  // 注意：imu_msg 已经被 move，不能使用！
+        pose_msg->header = header;
+        pose_msg->header.frame_id = "map";
+        pose_msg->pose.orientation = orientation;
         pose_msg->pose.position.x = 0.0;
         pose_msg->pose.position.y = 0.0;
         pose_msg->pose.position.z = 0.0;
-        // imu_pose_pub_->publish(std::move(pose_msg));
-    } else {
-        RCLCPP_ERROR(node_->get_logger(), "imu_pose_pub_ is null");
+        imu_pose_pub_->publish(std::move(pose_msg));
     }
 
     geometry_msgs::msg::TransformStamped tfs;

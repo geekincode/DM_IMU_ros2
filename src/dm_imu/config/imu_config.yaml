@@ -11,3 +11,6 @@ dm_imu_node:
       calibrate_on_startup: false  # 是否在启动时自动校准 (使 RPY 为 0)
       calibration_samples: 100    # 校准采集样本数
       calibration_timeout_ms: 5000  # 校准超时时间 (毫秒)
+      
+      # 发布参数
+      publish_pose: true  # 是否发布 PoseStamped 消息到 /pose 话题

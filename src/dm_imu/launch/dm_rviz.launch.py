@@ -50,7 +50,7 @@ def generate_launch_description():
             arguments=['-d', PathJoinSubstitution([
                 FindPackageShare('dm_imu'),
                 'rviz',
-                'imu_tf.rviz'
+                'imu_data.rviz'
             ])],
             output='screen'
         )

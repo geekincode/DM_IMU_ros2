@@ -107,6 +107,7 @@ namespace dmbot_serial
       bool calibrate_on_startup_ = true;
       int calibration_samples_ = 100;
       int calibration_timeout_ms_ = 5000;
+      bool publish_pose_ = false;
       rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback_handle_;
       rclcpp::Service<dm_imu::srv::CalibrateIMU>::SharedPtr calibrate_service_;
 

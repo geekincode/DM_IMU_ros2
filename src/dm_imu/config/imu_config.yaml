@@ -6,3 +6,8 @@ dm_imu_node:
       roll_offset: 0.0      # 横滚角偏移
       pitch_offset: 0.0       # 俯仰角偏移
       yaw_offset: 0.0         # 偏航角偏移
+      
+      # 启动时自动校准参数
+      calibrate_on_startup: false  # 是否在启动时自动校准 (使 RPY 为 0)
+      calibration_samples: 100    # 校准采集样本数
+      calibration_timeout_ms: 5000  # 校准超时时间 (毫秒)

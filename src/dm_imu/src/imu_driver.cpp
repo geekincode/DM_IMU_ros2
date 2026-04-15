@@ -24,10 +24,16 @@ DmImu::DmImu(rclcpp::Node::SharedPtr node)
     node->declare_parameter("imu.roll_offset", 0.0);
     node->declare_parameter("imu.pitch_offset", 0.0);
     node->declare_parameter("imu.yaw_offset", 0.0);
+    node->declare_parameter("imu.calibrate_on_startup", true);
+    node->declare_parameter("imu.calibration_samples", 100);
+    node->declare_parameter("imu.calibration_timeout_ms", 5000);
 
     node->get_parameter("imu.roll_offset", roll_offset);
     node->get_parameter("imu.pitch_offset", pitch_offset);
     node->get_parameter("imu.yaw_offset", yaw_offset);
+    node->get_parameter("imu.calibrate_on_startup", calibrate_on_startup_);
+    node->get_parameter("imu.calibration_samples", calibration_samples_);
+    node->get_parameter("imu.calibration_timeout_ms", calibration_timeout_ms_);
 
     
     imu_serial_port = node->get_parameter("port").as_string();
@@ -89,7 +95,12 @@ DmImu::DmImu(rclcpp::Node::SharedPtr node)
     // 启动数据读取线程
     rec_thread = std::thread(&DmImu::get_imu_data_thread, this);
 
-    RCLCPP_INFO(node_->get_logger(), "IMU Initialization Complete");
+    if (calibrate_on_startup_) {
+        RCLCPP_INFO(node_->get_logger(), "IMU Initialization Complete. Starting calibration with %d samples (timeout: %dms)...", 
+                    calibration_samples_, calibration_timeout_ms_);
+    } else {
+        RCLCPP_INFO(node_->get_logger(), "IMU Initialization Complete");
+    }
 }
 
 // 析构函数实现
@@ -139,7 +150,17 @@ void DmImu::get_imu_data_thread()
 {
     RCLCPP_INFO(node_->get_logger(), "In get_imu_data_thread,Imu Serial Port initialized: %s @ %d baud",
                    imu_serial_port.c_str(), imu_seial_baud);
-    int error_num = 0;
+    
+    // 校准相关变量
+    double roll_sum = 0.0, pitch_sum = 0.0, yaw_sum = 0.0;
+    int valid_samples = 0;
+    auto calibration_start_time = std::chrono::high_resolution_clock::now();
+    bool in_calibration_mode = calibrate_on_startup_;
+    
+    // 如果不启用校准，立即标记为已校准
+    if (!calibrate_on_startup_) {
+        calibrated_ = true;
+    }
 
     while (rclcpp::ok() && !stop_thread_)
     {
@@ -198,35 +219,83 @@ void DmImu::get_imu_data_thread()
             // CRC校验
             if (Get_CRC16((uint8_t*)(&receive_data.FrameHeader1), 16)==receive_data.crc1) {
               RCLCPP_DEBUG(node_->get_logger(),"CRC校验正确");
-                // std::cerr<<"calculate1: "<<Get_CRC16((uint8_t*)(&receive_data.FrameHeader1), 16)<<std::endl;
-                // std::cerr<<"actuaal1: "<<receive_data.crc1<<std::endl;
                 data.accx =*((float *)(&receive_data.accx_u32));
                 data.accy =*((float *)(&receive_data.accy_u32));
                 data.accz =*((float *)(&receive_data.accz_u32));
-                // RCLCPP_WARN(node_->get_logger(), "Accelerometer CRC error");
-                // crc_valid = false;
             }
             if (Get_CRC16((uint8_t*)(&receive_data.FrameHeader2), 16)==receive_data.crc2) {
-                // std::cerr<<"calculate2: "<<Get_CRC16((uint8_t*)(&receive_data.FrameHeader2), 16)<<std::endl;
-                // std::cerr<<"actuaal2: "<<receive_data.crc2<<std::endl;
                 data.gyrox =*((float *)(&receive_data.gyrox_u32));
                 data.gyroy =*((float *)(&receive_data.gyroy_u32));
                 data.gyroz =*((float *)(&receive_data.gyroz_u32));
             }
             if (Get_CRC16((uint8_t*)(&receive_data.FrameHeader3), 16)==receive_data.crc3) {
-                // std::cerr<<"calculate3: "<<Get_CRC16((uint8_t*)(&receive_data.FrameHeader3), 16)<<std::endl;
-                // std::cerr<<"actuaal3: "<<receive_data.crc3<<std::endl;
                 data.roll =*((float *)(&receive_data.roll_u32));
                 data.pitch =*((float *)(&receive_data.pitch_u32));
                 data.yaw =*((float *)(&receive_data.yaw_u32));
+                
+                // 校准模式：收集样本
+                if (in_calibration_mode && !calibrated_) {
+                    roll_sum += data.roll;
+                    pitch_sum += data.pitch;
+                    yaw_sum += data.yaw;
+                    valid_samples++;
+                    
+                    // 检查是否收集足够样本或超时
+                    auto current_time = std::chrono::high_resolution_clock::now();
+                    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        current_time - calibration_start_time).count();
+                    
+                    if (valid_samples >= calibration_samples_) {
+                        // 计算平均值并设置偏移
+                        double avg_roll = roll_sum / valid_samples;
+                        double avg_pitch = pitch_sum / valid_samples;
+                        double avg_yaw = yaw_sum / valid_samples;
+                        
+                        roll_offset = -avg_roll;
+                        pitch_offset = -avg_pitch;
+                        yaw_offset = -avg_yaw;
+                        
+                        calibrated_ = true;
+                        in_calibration_mode = false;
+                        
+                        RCLCPP_INFO(node_->get_logger(), 
+                            "IMU Calibration Complete! Collected %d samples. Offsets: roll=%.3f, pitch=%.3f, yaw=%.3f",
+                            valid_samples, roll_offset, pitch_offset, yaw_offset);
+                    } else if (elapsed_ms > calibration_timeout_ms_) {
+                        // 超时处理
+                        if (valid_samples > 0) {
+                            double avg_roll = roll_sum / valid_samples;
+                            double avg_pitch = pitch_sum / valid_samples;
+                            double avg_yaw = yaw_sum / valid_samples;
+                            
+                            roll_offset = -avg_roll;
+                            pitch_offset = -avg_pitch;
+                            yaw_offset = -avg_yaw;
+                            
+                            calibrated_ = true;
+                            in_calibration_mode = false;
+                            
+                            RCLCPP_WARN(node_->get_logger(), 
+                                "IMU Calibration Timeout! Calibrated with %d samples (< %d). Offsets: roll=%.3f, pitch=%.3f, yaw=%.3f",
+                                valid_samples, calibration_samples_, roll_offset, pitch_offset, yaw_offset);
+                        } else {
+                            RCLCPP_ERROR(node_->get_logger(), "IMU Calibration Timeout! No valid samples collected.");
+                            calibrated_ = true;
+                            in_calibration_mode = false;
+                        }
+                    }
+                }
             }
 
-            publish_imu_data();
+            // 只在校准完成后发布数据
+            if (calibrated_) {
+                publish_imu_data();
+            }
             }
 
         } catch (const serial::IOException& e) {
             RCLCPP_ERROR(node_->get_logger(), "Serial IO error: %s", e.what());
-            init_imu_serial(); // 尝试重新初始化
+            init_imu_serial();
         } catch (const std::exception& e) {
             RCLCPP_ERROR(node_->get_logger(), "Processing error: %s", e.what());
         }

@@ -2,8 +2,13 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
+from ament_index_python.packages import get_package_share_directory
+import os
 
 def generate_launch_description():
+    # 获取 dm_imu 包的共享目录路径
+    dm_imu_share_dir = get_package_share_directory('dm_imu')
+    config_file = os.path.join(dm_imu_share_dir, 'config', 'imu_config.yaml')
 
     return LaunchDescription([
         # IMU节点
@@ -15,7 +20,7 @@ def generate_launch_description():
             parameters=[{
                 'port': '/dev/ttyACM0',
                 'baud': 921600
-            }]
+            }, config_file]
         ),
         
         # 静态TF：map -> base_link

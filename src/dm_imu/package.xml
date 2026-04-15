@@ -13,6 +13,7 @@
   <!-- 依赖项 -->
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>serial</depend> <!-- 需要确认ROS2中的对应包名 -->
   <depend>rcl_interfaces</depend>
   <depend>tf2</depend>
@@ -21,9 +22,9 @@
   
 
   <!-- 如果使用消息/服务 -->
-  <!-- <build_depend>rosidl_default_generators</build_depend> -->
-  <!-- <exec_depend>rosidl_default_runtime</exec_depend> -->
-  <!-- <member_of_group>rosidl_interface_packages</member_of_group> -->
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
 
   <!-- 必须的export标签 -->
   <export>

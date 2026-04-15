@@ -1,0 +1,5 @@
+# Request: 空请求
+---
+# Response
+bool success
+string message

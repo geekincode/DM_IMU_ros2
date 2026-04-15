@@ -3,6 +3,6 @@ dm_imu_node:
     imu:
       # RPY 偏移纠正参数 (单位: 度)
       # 用于校正 IMU 的安装角度偏差
-      roll_offset: 180.0      # 横滚角偏移
+      roll_offset: 0.0      # 横滚角偏移
       pitch_offset: 0.0       # 俯仰角偏移
-      yaw_offset: -90.0         # 偏航角偏移
+      yaw_offset: 0.0         # 偏航角偏移

@@ -51,6 +51,15 @@ DmImu::DmImu(rclcpp::Node::SharedPtr node)
         }
     );
 
+    // 创建校准服务
+    calibrate_service_ = node->create_service<dm_imu::srv::CalibrateIMU>(
+        "calibrate_imu",
+        [this](const std::shared_ptr<dm_imu::srv::CalibrateIMU::Request> request,
+               std::shared_ptr<dm_imu::srv::CalibrateIMU::Response> response) {
+            this->on_calibrate_imu(request, response);
+        }
+    );
+
     // 进入设置模式
     enter_setting_mode();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -285,18 +294,19 @@ void DmImu::publish_imu_data()
             return;
         }
         pose_msg->header = header;  // 使用 header 副本
+        pose_msg->header.frame_id = "map";  // 确保与 IMU 消息一致
         pose_msg->pose.orientation = orientation;  // 注意：imu_msg 已经被 move，不能使用！
         pose_msg->pose.position.x = 0.0;
         pose_msg->pose.position.y = 0.0;
         pose_msg->pose.position.z = 0.0;
-        imu_pose_pub_->publish(std::move(pose_msg));
+        // imu_pose_pub_->publish(std::move(pose_msg));
     } else {
         RCLCPP_ERROR(node_->get_logger(), "imu_pose_pub_ is null");
     }
 
     geometry_msgs::msg::TransformStamped tfs;
     tfs.header.stamp = now;
-    tfs.header.frame_id = "base_link";      // 父坐标系
+    tfs.header.frame_id = "map";      // 父坐标系
     tfs.child_frame_id = "imu_link";        // 子坐标系
     tfs.transform.rotation = orientation;
 
@@ -440,6 +450,28 @@ rcl_interfaces::msg::SetParametersResult DmImu::on_parameter_change(
     }
 
     return result;
+}
+
+void DmImu::on_calibrate_imu(
+    const std::shared_ptr<dm_imu::srv::CalibrateIMU::Request> request,
+    std::shared_ptr<dm_imu::srv::CalibrateIMU::Response> response)
+{
+    // 获取当前 IMU 数据的 RPY
+    double current_roll = data.roll;
+    double current_pitch = data.pitch;
+    double current_yaw = data.yaw;
+
+    // 设置 offset 使得输出的 RPY 都变为 0
+    roll_offset = -current_roll;
+    pitch_offset = -current_pitch;
+    yaw_offset = -current_yaw;
+
+    RCLCPP_INFO(node_->get_logger(), 
+        "IMU Calibrated: roll_offset=%.3f, pitch_offset=%.3f, yaw_offset=%.3f",
+        roll_offset, pitch_offset, yaw_offset);
+
+    response->success = true;
+    response->message = "IMU calibration completed successfully";
 }
 
 } // namespace dmbot_serial

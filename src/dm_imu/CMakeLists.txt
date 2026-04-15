@@ -13,6 +13,13 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)      # 添加tf2_ros依赖
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(serial REQUIRED) # 如果存在ROS2版本的serial包
+find_package(rosidl_default_generators REQUIRED)
+
+# 生成服务接口
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/CalibrateIMU.srv"
+  DEPENDENCIES std_msgs
+)
 
 # 2. 添加C++标准要求（ROS2默认使用C++14/17）
 if(NOT CMAKE_CXX_STANDARD)
@@ -42,6 +49,11 @@ ament_target_dependencies(${PROJECT_NAME}_node
   "tf2_geometry_msgs"
   "serial"
 )
+
+# 生成并链接服务接口
+rosidl_get_typesupport_target(cpp_typesupport_target
+  ${PROJECT_NAME} rosidl_typesupport_cpp)
+target_link_libraries(${PROJECT_NAME}_node "${cpp_typesupport_target}")
 # 如果某些依赖项不支持ament_target_dependencies，可以再回退到显式指定
 # target_include_directories(${PROJECT_NAME}_node PUBLIC
 #   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -66,6 +78,7 @@ ament_export_dependencies(
   rclcpp
   std_msgs
   serial
+  rosidl_default_runtime
 )
 
 install(DIRECTORY include/
